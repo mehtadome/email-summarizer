@@ -7,3 +7,10 @@ __pycache__/
 dist/
 build/
 .DS_Store
+
+# Gmail OAuth — never commit these
+token.json
+credentials.json
+
+# Generated digests — local only
+summaries/
