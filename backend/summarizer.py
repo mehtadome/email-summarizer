@@ -127,6 +127,49 @@ def summarize(emails: list[dict[str, Any]], since: datetime) -> Digest:
 
 
 # ---------------------------------------------------------------------------
+# Merge helper
+# ---------------------------------------------------------------------------
+
+def update_overall_summary(entries: list[EmailEntry]) -> str:
+    """
+    Generate a new overall_summary from a list of already-summarized EmailEntry objects.
+    Used when merging a new digest into an existing weekly one — avoids re-summarizing
+    emails we've already processed, only needs the compact summaries.
+    """
+    entries_text = "\n".join(
+        f"- [{e.importance.upper()}] From: {e.sender} | Subject: {e.subject} | {e.summary}"
+        for e in entries
+    )
+
+    prompt = (
+        "You are an email triage assistant.\n\n"
+        "Below is a list of emails from this week, each with an importance level and a short summary.\n"
+        "Write a brief overall_summary (3–5 sentences) covering the key things that need attention.\n"
+        "Respond with ONLY the summary text — no JSON, no markdown, no preamble.\n\n"
+        f"--- EMAILS ---\n{entries_text}"
+    )
+
+    env = {k: v for k, v in os.environ.items() if k != "ANTHROPIC_API_KEY"}
+    result = subprocess.run(
+        ["/opt/homebrew/bin/claude", "-p", "--no-session-persistence"],
+        input=prompt,
+        capture_output=True,
+        text=True,
+        timeout=60,
+        env=env,
+    )
+
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"Claude CLI failed generating overall summary (rc={result.returncode})\n"
+            f"stdout: {result.stdout.strip()}\n"
+            f"stderr: {result.stderr.strip()}"
+        )
+
+    return result.stdout.strip()
+
+
+# ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 

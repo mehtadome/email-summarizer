@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from backend.fetcher import fetch_emails
-from backend.summarizer import summarize
+from backend.summarizer import summarize, update_overall_summary, EmailEntry, Digest
 
 
 OUTPUT_DIR = Path(os.getenv("OUTPUT_DIR", "digests"))
@@ -28,13 +28,13 @@ def _start_of_week() -> datetime:
     return today - timedelta(days=today.weekday())  # weekday() == 0 on Monday
 
 
-def _latest_digest_this_week() -> dict | None:
+def _latest_weekly_digest() -> tuple[Path, dict] | tuple[None, None]:
     """
-    Return the parsed JSON of the most recent digest from this week, or None.
-    Digest filenames are YYYY-MM-DD_HH-MM.json — we filter by the week start date.
+    Return (path, parsed_json) of the most recent digest from this week, or (None, None).
+    Digest filenames are YYYY-MM-DD_HH-MM.json — filtered by the current week start.
     """
     if not OUTPUT_DIR.exists():
-        return None
+        return None, None
 
     week_start = _start_of_week()
     candidates = []
@@ -48,10 +48,10 @@ def _latest_digest_this_week() -> dict | None:
             continue
 
     if not candidates:
-        return None
+        return None, None
 
     _, latest_path = max(candidates, key=lambda x: x[0])
-    return json.loads(latest_path.read_text())
+    return latest_path, json.loads(latest_path.read_text())
 
 
 def get_fetch_since() -> datetime:
@@ -60,7 +60,7 @@ def get_fetch_since() -> datetime:
     - If a digest already exists this week, fetch only since its generated_at.
     - Otherwise fetch since Monday 00:00 of the current week.
     """
-    latest = _latest_digest_this_week()
+    _, latest = _latest_weekly_digest()
     if latest and "generated_at" in latest:
         since = datetime.fromisoformat(latest["generated_at"])
         print(f"[digest] Found existing digest this week — fetching since {since.strftime('%A %b %d %H:%M')}")
@@ -73,23 +73,64 @@ def get_fetch_since() -> datetime:
 
 def run_digest(since: datetime | None = None) -> Path:
     """
-    Fetch emails since `since` (defaults to smart week logic), summarize, save JSON.
-    Returns the output path.
+    Fetch emails, merge with existing weekly digest if one exists, save as single file.
+
+    - First pull of the week: fetches since Monday 00:00, saves fresh digest.
+    - Subsequent pulls: fetches only new emails, merges with existing weekly digest,
+      deletes the old file, saves a new file named with the current timestamp.
     """
+    now = datetime.now()
+
     if since is None:
         since = get_fetch_since()
 
     print(f"[digest] Fetching emails since {since.isoformat()}...")
-    emails = fetch_emails(since=since)
-    print(f"[digest] Found {len(emails)} email(s). Summarizing...")
+    new_emails = fetch_emails(since=since)
+    print(f"[digest] Found {len(new_emails)} new email(s).")
 
-    digest = summarize(emails, since=since)
+    existing_path, existing_data = _latest_weekly_digest()
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M")
+    timestamp = now.strftime("%Y-%m-%d_%H-%M")
     out_path = OUTPUT_DIR / f"{timestamp}.json"
-    out_path.write_text(json.dumps(digest.model_dump(), indent=2, ensure_ascii=False))
 
+    if existing_path and not new_emails:
+        # Nothing new — return the existing file as-is
+        print("[digest] No new emails since last digest.")
+        return existing_path
+
+    if existing_path and new_emails:
+        # Summarize only the new emails
+        print(f"[digest] Summarizing {len(new_emails)} new email(s)...")
+        new_digest = summarize(new_emails, since=since)
+
+        # Merge old entries + new entries
+        existing_entries = [EmailEntry(**e) for e in existing_data["emails"]]
+        all_entries = existing_entries + new_digest.emails
+        print(f"[digest] Merging {len(existing_entries)} existing + {len(new_digest.emails)} new entries...")
+
+        # Regenerate overall summary across the full week
+        overall = update_overall_summary(all_entries)
+
+        merged = Digest(
+            generated_at=now.isoformat(timespec="seconds"),
+            period_from=existing_data["period_from"],  # keep original week-start
+            period_to=now.isoformat(timespec="seconds"),
+            total_emails=len(all_entries),
+            emails=all_entries,
+            overall_summary=overall,
+        )
+
+        # Replace old file with merged file
+        existing_path.unlink()
+        out_path.write_text(json.dumps(merged.model_dump(), indent=2, ensure_ascii=False))
+        print(f"[digest] Merged digest saved → {out_path} ({merged.total_emails} total emails)")
+        return out_path
+
+    # No existing digest this week — fresh run
+    print(f"[digest] Summarizing {len(new_emails)} email(s)...")
+    digest = summarize(new_emails, since=since)
+    out_path.write_text(json.dumps(digest.model_dump(), indent=2, ensure_ascii=False))
     print(f"[digest] Saved → {out_path}")
     print(f"[digest] {digest.total_emails} emails | {digest.overall_summary[:120]}...")
     return out_path
