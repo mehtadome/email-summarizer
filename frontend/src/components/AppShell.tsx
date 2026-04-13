@@ -1,8 +1,9 @@
 import type { ReactNode } from 'react'
+import { SettingsGearLink } from './SettingsGearLink'
 
 type AppShellProps = {
   title?: string
-  /** Extra content aligned to the right of the title (e.g. actions). */
+  /** Extra content to the left of the settings gear (e.g. digest actions). */
   headerRight?: ReactNode
   /** Larger page title (e.g. digest view). */
   titleLarge?: boolean
@@ -28,9 +29,10 @@ export function AppShell({
           >
             {title}
           </h1>
-          {headerRight ? (
-            <div className="app-shell__header-actions">{headerRight}</div>
-          ) : null}
+          <div className="app-shell__header-actions">
+            {headerRight}
+            <SettingsGearLink />
+          </div>
         </div>
       </header>
       <main className="app-shell__main">{children}</main>

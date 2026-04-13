@@ -22,7 +22,7 @@ export function DigestEmailCard({ email }: Props) {
     email.sender,
   )
 
-  const gmailHref = `https://mail.google.com/mail/u/${encodeURIComponent(email.account)}/#all/${encodeURIComponent(email.id)}`
+  const gmailHref = `https://mail.google.com/mail/u/${encodeURIComponent(email.account.trim())}/#all/${encodeURIComponent(email.id)}`
 
   return (
     <article
