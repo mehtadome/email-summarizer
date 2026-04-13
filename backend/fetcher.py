@@ -13,7 +13,7 @@ from googleapiclient.discovery import build
 
 SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"]
 
-# Paths relative to the project root (one level above scripts/)
+# Paths relative to the project root (one level above backend/)
 _ROOT = Path(__file__).parent.parent
 TOKEN_PATH = _ROOT / "token.json"
 CREDENTIALS_PATH = _ROOT / "credentials.json"
