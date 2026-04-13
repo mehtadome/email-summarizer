@@ -1,8 +1,6 @@
 """FastAPI server — exposes digest data and triggers to the frontend."""
 
 import json
-import subprocess
-import sys
 import threading
 from pathlib import Path
 
@@ -84,24 +82,10 @@ def list_digests() -> list[dict]:
 
 @app.get("/api/digests/latest")
 def latest_digest() -> dict:
-    """
-    Run the digest pipeline and return the result.
-    Uses smart week logic: fetches since the last digest this week,
-    or since Monday 00:00 if this is the first pull of the week.
-    """
-    try:
-        subprocess.run(
-            [sys.executable, "-m", "backend.main", "--now"],
-            check=True,
-            cwd=Path(__file__).parent.parent,
-        )
-    except subprocess.CalledProcessError as exc:
-        raise HTTPException(status_code=500, detail=f"Digest run failed: {exc}")
-
+    """Return the newest digest JSON on disk (does not run the pipeline)."""
     paths = _all_digest_paths()
     if not paths:
-        raise HTTPException(status_code=500, detail="Digest ran but no output file was found.")
-
+        raise HTTPException(status_code=404, detail="No digests found.")
     return _load_digest(paths[0])
 
 

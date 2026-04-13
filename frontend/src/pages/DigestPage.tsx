@@ -51,7 +51,7 @@ export function DigestPage() {
   }, [digest])
 
   return (
-    <AppShell title={decodedId ? `Digest · ${decodedId}` : 'Digest'}>
+    <AppShell title={decodedId ? `Digest · ${decodedId}` : 'Digest'} titleLarge>
       <div className="digest-toolbar">
         <Link to="/" className="digest-back-link">
           ← Home

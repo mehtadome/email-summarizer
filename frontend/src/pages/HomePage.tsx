@@ -46,7 +46,7 @@ export function HomePage() {
   }
 
   return (
-    <AppShell>
+    <AppShell title="Email Summarizer" titleLarge>
       <div className="home-top">
         <p className="lead">{mainText}</p>
         <Link

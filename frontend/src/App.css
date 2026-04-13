@@ -9,12 +9,30 @@
   border-bottom: 1px solid var(--border);
 }
 
+.app-shell__header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
 .app-shell__title {
   margin: 0;
   font-size: 1.25rem;
   font-weight: 600;
   letter-spacing: -0.02em;
   color: var(--text-heading);
+}
+
+.app-shell__title--large {
+  font-size: 1.875rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.app-shell__header-actions {
+  flex-shrink: 0;
 }
 
 .app-shell__main {
