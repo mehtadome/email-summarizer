@@ -8,6 +8,7 @@ function App() {
     <Routes>
       <Route path="/" element={<HomePage />} />
       <Route path="/digest" element={<DigestPage />} />
+      <Route path="/digest/:emailId" element={<DigestPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )

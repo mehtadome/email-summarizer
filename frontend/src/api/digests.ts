@@ -1,4 +1,6 @@
 import { getJson } from './client'
+import type { Digest } from '../types/digest'
+import { isDigest } from '../types/digest'
 
 export type DigestListItem = {
   filename: string
@@ -13,6 +15,10 @@ export async function fetchDigests(): Promise<DigestListItem[]> {
 }
 
 /** `GET /api/digests/latest` — full latest digest JSON. */
-export async function fetchLatestDigest(): Promise<unknown> {
-  return getJson<unknown>('/api/digests/latest')
+export async function fetchLatestDigest(): Promise<Digest> {
+  const data = await getJson<unknown>('/api/digests/latest')
+  if (!isDigest(data)) {
+    throw new Error('Invalid digest response from server.')
+  }
+  return data
 }

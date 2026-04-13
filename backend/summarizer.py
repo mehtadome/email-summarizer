@@ -3,7 +3,7 @@
 import json
 import os
 import subprocess
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel
@@ -53,13 +53,13 @@ Respond ONLY with valid JSON matching the schema provided. No markdown fences, n
 # Main function
 # ---------------------------------------------------------------------------
 
-def summarize(emails: list[dict[str, Any]], hours_back: int = 24) -> Digest:
+def summarize(emails: list[dict[str, Any]], since: datetime) -> Digest:
     """
     Send emails to the Claude CLI and return a structured Digest.
     Uses the local Claude Pro subscription — no API key required.
     """
     now = datetime.now()
-    period_from = (now - timedelta(hours=hours_back)).isoformat(timespec="seconds")
+    period_from = since.isoformat(timespec="seconds")
     period_to = now.isoformat(timespec="seconds")
 
     if not emails:
@@ -75,7 +75,8 @@ def summarize(emails: list[dict[str, Any]], hours_back: int = 24) -> Digest:
     full_prompt = (
         f"{_SYSTEM_PROMPT}\n\n"
         f"Today is {now.strftime('%A, %B %d, %Y %H:%M')}.\n"
-        f"Summarize the following {len(emails)} email(s) received in the last {hours_back} hours.\n\n"
+        f"Summarize the following {len(emails)} email(s) received since "
+        f"{since.strftime('%A, %B %d at %H:%M')}.\n\n"
         f"Return JSON with this exact schema:\n"
         f"{_output_schema()}\n\n"
         f"--- EMAILS ---\n{_format_emails(emails)}"

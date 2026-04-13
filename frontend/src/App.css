@@ -150,3 +150,64 @@
   line-height: 1.55;
   color: var(--text);
 }
+
+.digest-toolbar__sep {
+  margin: 0 0.5rem;
+  color: var(--text-muted);
+}
+
+.digest-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  max-width: 52rem;
+}
+
+.digest-email-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.digest-email-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.65rem 1rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--btn-bg);
+}
+
+.digest-email-card__title {
+  margin: 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  font-family: ui-monospace, monospace;
+  word-break: break-all;
+  color: var(--text-heading);
+}
+
+.digest-email-card__link {
+  flex-shrink: 0;
+  font-size: 0.875rem;
+  color: var(--text-heading);
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+}
+
+.digest-email-card__link:hover {
+  border-bottom-color: var(--border);
+}
+
+.digest-email-card__pre {
+  margin: 0;
+  border: none;
+  border-radius: 0;
+}
+
+.digest-inline-code {
+  font-family: ui-monospace, monospace;
+  font-size: 0.9em;
+}

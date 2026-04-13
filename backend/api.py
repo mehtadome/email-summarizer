@@ -4,7 +4,6 @@ import json
 import subprocess
 import sys
 import threading
-from datetime import date
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
@@ -86,24 +85,20 @@ def list_digests() -> list[dict]:
 @app.get("/api/digests/latest")
 def latest_digest() -> dict:
     """
-    Return the full latest digest JSON.
-    If no digest exists for today, runs the full pipeline (Gmail fetch + summarize)
-    as a subprocess, saves to file, then returns it.
+    Run the digest pipeline and return the result.
+    Uses smart week logic: fetches since the last digest this week,
+    or since Monday 00:00 if this is the first pull of the week.
     """
+    try:
+        subprocess.run(
+            [sys.executable, "-m", "backend.main", "--now"],
+            check=True,
+            cwd=Path(__file__).parent.parent,
+        )
+    except subprocess.CalledProcessError as exc:
+        raise HTTPException(status_code=500, detail=f"Digest run failed: {exc}")
+
     paths = _all_digest_paths()
-    today = date.today().isoformat()
-
-    if not paths or not paths[0].name.startswith(today):
-        try:
-            subprocess.run(
-                [sys.executable, "-m", "backend.main", "--now"],
-                check=True,
-                cwd=Path(__file__).parent.parent,
-            )
-        except subprocess.CalledProcessError as exc:
-            raise HTTPException(status_code=500, detail=f"Digest run failed: {exc}")
-        paths = _all_digest_paths()
-
     if not paths:
         raise HTTPException(status_code=500, detail="Digest ran but no output file was found.")
 

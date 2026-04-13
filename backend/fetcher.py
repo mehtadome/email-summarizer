@@ -2,7 +2,7 @@
 
 import base64
 import os
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -48,17 +48,15 @@ def get_gmail_service():
     return build("gmail", "v1", credentials=creds)
 
 
-def fetch_emails(hours_back: int = 24) -> list[dict[str, Any]]:
+def fetch_emails(since: datetime) -> list[dict[str, Any]]:
     """
-    Fetch emails received in the last `hours_back` hours.
+    Fetch emails received since `since`.
 
     Returns a list of dicts with keys:
         id, sender, subject, received_at, body
     """
     service = get_gmail_service()
-
-    after_dt = datetime.now() - timedelta(hours=hours_back)
-    after_epoch = int(after_dt.timestamp())
+    after_epoch = int(since.timestamp())
 
     results = (
         service.users()
