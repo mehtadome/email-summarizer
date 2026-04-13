@@ -17,7 +17,7 @@
 
 ## Up Next
 
-- [ ] Merge weekly digest files into one — instead of creating a new JSON each pull, merge the new emails into the existing weekly file and rename it to the latest pull time (e.g. pulling on Sunday at 5:44pm after a Wednesday pull produces a single `2026-04-13_17-44.json` containing all emails since Monday)
+- [x] Merge weekly digest files into one — instead of creating a new JSON each pull, merge the new emails into the existing weekly file and rename it to the latest pull time (e.g. pulling on Sunday at 5:44pm after a Wednesday pull produces a single `2026-04-13_17-44.json` containing all emails since Monday)
 - [ ] Build out the digest browser UI (list + detail view for past digests)
 - [ ] Evolve the importance algorithm with user feedback (thumbs up/down on digests)
 - [ ] Configurable look-back window in the UI (e.g. weekend catchup → 72 hours)
