@@ -23,6 +23,10 @@
 - [ ] Configurable look-back window in the UI (e.g. weekend catchup → 72 hours)
 - [ ] Push notifications when a high-importance email is detected (email or Slack)
 
+## Nits
+
+- [ ] Stale recommendations: when a later email in the same day contradicts an earlier recommendation (e.g. a meeting follow-up rec when the meeting was subsequently cancelled), the older rec is not removed — same-day recs are concatenated, not reconciled
+
 ## Future
 
 - [ ] Outlook / Microsoft 365 support via Microsoft Graph API

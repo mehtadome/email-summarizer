@@ -128,6 +128,7 @@ def _parse_message(msg: dict, account: str) -> dict[str, Any]:
 
     return {
         "id": msg["id"],
+        "thread_id": msg["threadId"],
         "account": account,
         "sender": headers.get("from", ""),
         "subject": headers.get("subject", "(no subject)"),
