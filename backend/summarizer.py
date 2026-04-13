@@ -1,11 +1,12 @@
-"""Email summarizer — calls Claude API to produce a JSON digest."""
+"""Email summarizer — calls the claude CLI to produce a JSON digest."""
 
 import json
+import os
+import subprocess
 from datetime import datetime, timedelta
 from typing import Any
 
-import anthropic
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 # ---------------------------------------------------------------------------
@@ -31,7 +32,7 @@ class Digest(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# System prompt (cached — never changes between runs)
+# System prompt
 # ---------------------------------------------------------------------------
 
 _SYSTEM_PROMPT = """You are an email triage assistant. Your job is to read a batch of emails \
@@ -39,7 +40,7 @@ and produce a structured end-of-day digest.
 
 For each email assign an importance level:
 - "high"   — requires attention or action today (deadlines, direct asks, urgent issues, anything from a real person that needs a reply)
-- "medium" — worth reading but not time-sensitive (FYIs, updates, meeting summaries)
+- "medium" — worth reading but not time-sensitive (FYIs, updates, meeting digests)
 - "low"    — newsletters, marketing, automated notifications, receipts
 
 Write a concise 1–2 sentence summary per email.
@@ -54,57 +55,68 @@ Respond ONLY with valid JSON matching the schema provided. No markdown fences, n
 
 def summarize(emails: list[dict[str, Any]], hours_back: int = 24) -> Digest:
     """
-    Send emails to Claude and return a structured Digest.
-
-    Uses prompt caching on the system prompt to reduce costs on repeated runs.
+    Send emails to the Claude CLI and return a structured Digest.
+    Uses the local Claude Pro subscription — no API key required.
     """
+    now = datetime.now()
+    period_from = (now - timedelta(hours=hours_back)).isoformat(timespec="seconds")
+    period_to = now.isoformat(timespec="seconds")
+
     if not emails:
-        now = datetime.now()
         return Digest(
             generated_at=now.isoformat(timespec="seconds"),
-            period_from=(now - timedelta(hours=hours_back)).isoformat(timespec="seconds"),
-            period_to=now.isoformat(timespec="seconds"),
+            period_from=period_from,
+            period_to=period_to,
             total_emails=0,
             emails=[],
             overall_summary="No emails received in this period.",
         )
 
-    client = anthropic.Anthropic()
-
-    emails_text = _format_emails(emails)
-    now = datetime.now()
-    period_from = (now - timedelta(hours=hours_back)).isoformat(timespec="seconds")
-    period_to = now.isoformat(timespec="seconds")
-
-    user_content = (
+    full_prompt = (
+        f"{_SYSTEM_PROMPT}\n\n"
         f"Today is {now.strftime('%A, %B %d, %Y %H:%M')}.\n"
         f"Summarize the following {len(emails)} email(s) received in the last {hours_back} hours.\n\n"
         f"Return JSON with this exact schema:\n"
         f"{_output_schema()}\n\n"
-        f"--- EMAILS ---\n{emails_text}"
+        f"--- EMAILS ---\n{_format_emails(emails)}"
     )
 
-    response = client.messages.create(
-        model="claude-opus-4-6",
-        max_tokens=4096,
-        system=[
-            {
-                "type": "text",
-                "text": _SYSTEM_PROMPT,
-                "cache_control": {"type": "ephemeral"},
-            }
-        ],
-        messages=[{"role": "user", "content": user_content}],
+    # Strip ANTHROPIC_API_KEY from the subprocess environment.
+    # load_dotenv() sets it in the parent process (even as a blank placeholder),
+    # and the Claude CLI inherits it. When present — even empty — the CLI treats
+    # it as the auth method and rejects it instead of falling back to the OAuth
+    # token stored in the macOS keychain.
+    env = {k: v for k, v in os.environ.items() if k != "ANTHROPIC_API_KEY"}
+    result = subprocess.run(
+        ["/opt/homebrew/bin/claude", "-p", "--no-session-persistence"],
+        input=full_prompt,
+        capture_output=True,
+        text=True,
+        timeout=120,
+        env=env,
     )
 
-    raw_json = next(b.text for b in response.content if b.type == "text")
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"Claude CLI failed (rc={result.returncode})\n"
+            f"stdout: {result.stdout.strip()}\n"
+            f"stderr: {result.stderr.strip()}"
+        )
+
+    raw_json = result.stdout.strip()
+
+    # Strip markdown fences if Claude wrapped the JSON anyway
+    if raw_json.startswith("```"):
+        raw_json = "\n".join(
+            line for line in raw_json.splitlines()
+            if not line.startswith("```")
+        ).strip()
 
     try:
         data = json.loads(raw_json)
     except json.JSONDecodeError as exc:
         raise ValueError(f"Claude returned invalid JSON: {exc}\n\nRaw output:\n{raw_json}") from exc
 
-    # Inject period metadata (Claude doesn't know the exact ISO timestamps)
     data.setdefault("generated_at", now.isoformat(timespec="seconds"))
     data.setdefault("period_from", period_from)
     data.setdefault("period_to", period_to)

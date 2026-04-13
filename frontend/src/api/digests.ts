@@ -11,3 +11,8 @@ export type DigestListItem = {
 export async function fetchDigests(): Promise<DigestListItem[]> {
   return getJson<DigestListItem[]>('/api/digests')
 }
+
+/** `GET /api/digests/latest` — full latest digest JSON. */
+export async function fetchLatestDigest(): Promise<unknown> {
+  return getJson<unknown>('/api/digests/latest')
+}

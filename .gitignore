@@ -13,4 +13,4 @@ token.json
 credentials.json
 
 # Generated digests — local only
-summaries/
+digests/

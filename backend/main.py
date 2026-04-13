@@ -2,8 +2,8 @@
 Email summarizer — entry point.
 
 Usage:
-  python -m scripts.main            # start Flask API (port 8000) + daily 5pm scheduler
-  python -m scripts.main --now      # run a digest immediately and exit
+  python -m backend.main            # start FastAPI (port 8000)
+  python -m backend.main --now      # run a digest immediately and exit
 """
 
 import argparse
@@ -17,11 +17,11 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from scripts.fetcher import fetch_emails
-from scripts.summarizer import summarize
+from backend.fetcher import fetch_emails
+from backend.summarizer import summarize
 
 
-OUTPUT_DIR = Path(os.getenv("OUTPUT_DIR", "summaries"))
+OUTPUT_DIR = Path(os.getenv("OUTPUT_DIR", "digests"))
 
 
 def run_digest(hours_back: int = 24) -> Path:
@@ -42,19 +42,12 @@ def run_digest(hours_back: int = 24) -> Path:
     return out_path
 
 
-def _scheduled_job():
-    try:
-        run_digest()
-    except Exception as exc:
-        print(f"[digest] ERROR: {exc}", file=sys.stderr)
-
-
 def main():
     parser = argparse.ArgumentParser(description="Email summarizer")
     parser.add_argument(
         "--now",
         action="store_true",
-        help="Run a digest immediately and exit instead of waiting for 5 PM.",
+        help="Run a digest immediately and exit.",
     )
     parser.add_argument(
         "--hours",
@@ -64,21 +57,11 @@ def main():
     )
     args = parser.parse_args()
 
-    if not os.getenv("ANTHROPIC_API_KEY"):
-        sys.exit("ERROR: ANTHROPIC_API_KEY is not set. Copy .env.example to .env and fill it in.")
-
     if args.now:
         run_digest(hours_back=args.hours)
     else:
-        from scripts.scheduler import start as start_scheduler
-        from scripts.api import start as start_api
-
-        scheduler = start_scheduler(_scheduled_job)
-
-        try:
-            start_api(host="127.0.0.1", port=8000)
-        finally:
-            scheduler.shutdown()
+        from backend.api import start as start_api
+        start_api(host="127.0.0.1", port=8000)
 
 
 if __name__ == "__main__":

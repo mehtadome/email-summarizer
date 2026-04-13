@@ -5,8 +5,8 @@
 - [x] Gmail email fetching via OAuth2 (`scripts/fetcher.py`)
 - [x] Claude API summarization with importance scoring (`scripts/summarizer.py`)
 - [x] Daily 5pm scheduler (`scripts/scheduler.py`)
-- [x] FastAPI backend on port 8000 (`scripts/api.py`)
-- [x] JSON digest output saved to `summaries/`
+- [x] FastAPI backend on port 8000 (`backend/api.py`)
+- [x] JSON digest output saved to `digests/`
 - [x] React + TypeScript frontend scaffolded (`frontend/`)
 - [x] Vite dev proxy wired to backend (`/api` → `:8000`)
 - [x] `GET /api/sample-text` — loads latest digest summary on page load
@@ -18,7 +18,7 @@
 ## Up Next
 
 - [ ] Build out the digest browser UI (list + detail view for past digests)
-- [ ] Evolve the importance algorithm with user feedback (thumbs up/down on summaries)
+- [ ] Evolve the importance algorithm with user feedback (thumbs up/down on digests)
 - [ ] Configurable look-back window in the UI (e.g. weekend catchup → 72 hours)
 - [ ] Push notifications when a high-importance email is detected (email or Slack)
 

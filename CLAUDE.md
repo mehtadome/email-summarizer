@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-Email summarizer — fetches emails and produces AI-generated summaries using the Claude API.
+Email summarizer — fetches emails and produces AI-generated digests using the Claude API.
 
 ## Environment
 
@@ -18,14 +18,14 @@ pip install -r requirements.txt  # install deps
 ## Running
 
 ```bash
-# Start Flask API (port 8000) + daily 5pm scheduler — normal mode
-python -m scripts.main
+# Start FastAPI (port 8000) + daily 5pm scheduler — normal mode
+python -m backend.main
 
 # Run a digest right now and exit (good for testing)
-python -m scripts.main --now
+python -m backend.main --now
 
 # Fetch the last 72 hours instead of 24
-python -m scripts.main --now --hours 72
+python -m backend.main --now --hours 72
 ```
 
 In a second terminal, start the frontend dev server:
@@ -47,20 +47,20 @@ First run will open a browser for Gmail OAuth. The token is saved to `token.json
 ## Architecture
 
 ```
-scripts/
+backend/
   fetcher.py     — Gmail OAuth2 auth + email fetch (last N hours)
   summarizer.py  — Claude API call; returns structured Digest (Pydantic model)
   scheduler.py   — APScheduler background scheduler, fires at 17:00 daily
   api.py         — FastAPI server (port 8000); routes listed below
-  main.py        — CLI entry point; starts Flask + scheduler together
+  main.py        — CLI entry point; starts FastAPI + scheduler together
 
 frontend/        — React + TypeScript + Vite (proxies /api → :8000)
-summaries/       — output JSON files, one per run (YYYY-MM-DD_HH-MM.json)
+digests/       — output JSON files, one per run (YYYY-MM-DD_HH-MM.json)
 credentials.json — Gmail OAuth2 client secrets (not committed)
 token.json       — stored OAuth token after first login (not committed)
 ```
 
-### API routes (Flask, port 8000)
+### API routes (FastAPI, port 8000)
 
 | Method | Path | Description |
 |--------|------|-------------|
@@ -75,5 +75,5 @@ token.json       — stored OAuth token after first login (not committed)
 - **Provider**: Gmail first (OAuth2 via google-auth-oauthlib). Outlook support is in `todo.md`.
 - **Schedule**: Daily at 17:00 local time (override with `TIMEZONE=America/New_York` in `.env`).
 - **Importance algorithm**: Claude determines high/medium/low based on content — no sender whitelisting.
-- **Output format**: JSON saved to `summaries/`. Each file is a `Digest` with per-email entries and an overall summary.
-- **Prompt caching**: System prompt is cached (`cache_control: ephemeral`) to reduce API costs on repeated runs.
+- **Output format**: JSON saved to `digests/`. Each file is a `Digest` with per-email entries and an overall summary.
+- **Claude CLI auth**: The summarizer calls `claude -p` as a subprocess. `load_dotenv()` sets `ANTHROPIC_API_KEY` in the parent process environment (even as a blank placeholder), which the CLI inherits and treats as the auth method — causing an "Invalid API key" error instead of falling back to the OAuth keychain token. Fix: strip `ANTHROPIC_API_KEY` from the subprocess env before spawning the CLI. See `backend/summarizer.py`.
