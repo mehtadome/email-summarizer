@@ -10,6 +10,7 @@ build/
 
 # Gmail OAuth — never commit these
 token.json
+token_*.json
 credentials.json
 
 # Generated digests — local only

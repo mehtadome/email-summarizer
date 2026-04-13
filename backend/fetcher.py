@@ -15,19 +15,29 @@ SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"]
 
 # Paths relative to the project root (one level above backend/)
 _ROOT = Path(__file__).parent.parent
-TOKEN_PATH = _ROOT / "token.json"
 CREDENTIALS_PATH = _ROOT / "credentials.json"
 
 # Maximum body characters to forward to the summarizer per email
 _BODY_CHAR_LIMIT = 800
 
 
-def get_gmail_service():
-    """Return an authenticated Gmail API service, running OAuth flow if needed."""
+def _token_path(account: str) -> Path:
+    """Return the token file path for a given account email."""
+    # Primary account uses the legacy token.json for backwards compatibility.
+    primary = os.getenv("GMAIL_ACCOUNTS", "").split(",")[0].strip()
+    if account == primary or not primary:
+        return _ROOT / "token.json"
+    safe = account.replace("@", "_").replace(".", "_")
+    return _ROOT / f"token_{safe}.json"
+
+
+def get_gmail_service(account: str):
+    """Return an authenticated Gmail API service for the given account."""
+    token_path = _token_path(account)
     creds = None
 
-    if TOKEN_PATH.exists():
-        creds = Credentials.from_authorized_user_file(str(TOKEN_PATH), SCOPES)
+    if token_path.exists():
+        creds = Credentials.from_authorized_user_file(str(token_path), SCOPES)
 
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
@@ -43,19 +53,43 @@ def get_gmail_service():
             )
             creds = flow.run_local_server(port=0)
 
-        TOKEN_PATH.write_text(creds.to_json())
+        token_path.write_text(creds.to_json())
 
     return build("gmail", "v1", credentials=creds)
 
 
 def fetch_emails(since: datetime) -> list[dict[str, Any]]:
     """
-    Fetch emails received since `since`.
+    Fetch emails received since `since` across all configured accounts.
+
+    Accounts are read from the GMAIL_ACCOUNTS env var (comma-separated).
+    Each email is tagged with the account it was fetched from.
 
     Returns a list of dicts with keys:
-        id, sender, subject, received_at, body
+        id, account, sender, subject, received_at, body
     """
-    service = get_gmail_service()
+    raw_accounts = os.getenv("GMAIL_ACCOUNTS", "")
+    accounts = [a.strip() for a in raw_accounts.split(",") if a.strip()]
+
+    if not accounts:
+        raise ValueError(
+            "GMAIL_ACCOUNTS is not set. Add it to your .env file, e.g.:\n"
+            "GMAIL_ACCOUNTS=you@gmail.com,other@gmail.com"
+        )
+
+    all_emails: list[dict[str, Any]] = []
+    for account in accounts:
+        print(f"[fetcher] Fetching for {account}...")
+        emails = _fetch_for_account(account, since)
+        print(f"[fetcher] Found {len(emails)} email(s) for {account}.")
+        all_emails.extend(emails)
+
+    return all_emails
+
+
+def _fetch_for_account(account: str, since: datetime) -> list[dict[str, Any]]:
+    """Fetch emails for a single account and tag each with the account address."""
+    service = get_gmail_service(account)
     after_epoch = int(since.timestamp())
 
     results = (
@@ -76,7 +110,7 @@ def fetch_emails(since: datetime) -> list[dict[str, Any]]:
                 .get(userId="me", id=stub["id"], format="full")
                 .execute()
             )
-            email = _parse_message(msg)
+            email = _parse_message(msg, account)
             emails.append(email)
         except Exception as exc:
             print(f"[fetcher] Skipping message {stub['id']}: {exc}")
@@ -84,7 +118,7 @@ def fetch_emails(since: datetime) -> list[dict[str, Any]]:
     return emails
 
 
-def _parse_message(msg: dict) -> dict[str, Any]:
+def _parse_message(msg: dict, account: str) -> dict[str, Any]:
     """Extract fields from a raw Gmail message object."""
     headers = {h["name"].lower(): h["value"] for h in msg["payload"]["headers"]}
 
@@ -94,6 +128,7 @@ def _parse_message(msg: dict) -> dict[str, Any]:
 
     return {
         "id": msg["id"],
+        "account": account,
         "sender": headers.get("from", ""),
         "subject": headers.get("subject", "(no subject)"),
         "received_at": headers.get("date", ""),

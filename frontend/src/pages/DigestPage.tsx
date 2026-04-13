@@ -85,7 +85,7 @@ export function DigestPage() {
       {loadState === 'success' && digest && decodedId ? (
         selectedEmail ? (
           <div className="digest-cards">
-            <DigestEmailCard email={selectedEmail} hideDetailLink />
+            <DigestEmailCard email={selectedEmail} />
           </div>
         ) : (
           <p className="request-error" role="status">

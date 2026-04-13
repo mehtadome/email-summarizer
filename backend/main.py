@@ -125,7 +125,7 @@ def run_digest(since: datetime | None = None) -> Path | None:
 
     if today_path and today_data:
         # Same-day merge: append emails and recommendations, recompute title.
-        existing_entries = [EmailEntry(**e) for e in today_data["emails"]]
+        existing_entries = [EmailEntry(**{**e, "account": e.get("account", "")}) for e in today_data["emails"]]
         all_entries = existing_entries + new_digest.emails
 
         existing_recs = today_data.get("overall_summary", {}).get("recommendations", [])

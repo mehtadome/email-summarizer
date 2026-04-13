@@ -1,12 +1,9 @@
-import { Link } from 'react-router-dom'
 import type { DigestEmail } from '../types/digest'
 import { formatReceivedAtPacific } from '../utils/formatReceivedAtPt'
 import { parseSenderParts } from '../utils/parseSender'
 
 type Props = {
   email: DigestEmail
-  /** When true, omit the link to the single-email route (e.g. already on detail view). */
-  hideDetailLink?: boolean
 }
 
 function importanceClass(importance: string): string {
@@ -17,13 +14,15 @@ function importanceClass(importance: string): string {
   return 'digest-email-card--medium'
 }
 
-export function DigestEmailCard({ email, hideDetailLink }: Props) {
+export function DigestEmailCard({ email }: Props) {
   const imp = importanceClass(email.importance)
   const timeLabel = formatReceivedAtPacific(email.received_at)
   const headingId = `email-heading-${email.id}`
   const { display: senderDisplay, address: senderAddress } = parseSenderParts(
     email.sender,
   )
+
+  const gmailHref = `https://mail.google.com/mail/u/${encodeURIComponent(email.account)}/#all/${encodeURIComponent(email.id)}`
 
   return (
     <article
@@ -37,14 +36,16 @@ export function DigestEmailCard({ email, hideDetailLink }: Props) {
           </h2>
           <h3 className="digest-email-card__subject">{email.subject}</h3>
         </div>
-        {!hideDetailLink ? (
-          <Link
-            to={`/digest/${encodeURIComponent(email.id)}`}
-            className="digest-email-card__link"
+        <div className="digest-email-card__header-actions">
+          <a
+            href={gmailHref}
+            className="digest-email-card__link digest-email-card__link--external"
+            target="_blank"
+            rel="noopener noreferrer"
           >
-            Open
-          </Link>
-        ) : null}
+            Open in Gmail
+          </a>
+        </div>
       </header>
       <div className="digest-email-card__body">
         <p className="digest-email-card__summary">{email.summary}</p>

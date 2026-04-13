@@ -15,6 +15,7 @@ from pydantic import BaseModel
 
 class EmailEntry(BaseModel):
     id: str
+    account: str
     sender: str
     subject: str
     received_at: str
@@ -148,6 +149,11 @@ def summarize(emails: list[dict[str, Any]], since: datetime) -> Digest:
     data.setdefault("period_from", period_from)
     data.setdefault("period_to", period_to)
     data.setdefault("total_emails", len(emails))
+
+    # Inject account back into each entry — Claude doesn't set this field.
+    account_by_id = {e["id"]: e["account"] for e in emails}
+    for entry in data.get("emails", []):
+        entry.setdefault("account", account_by_id.get(entry.get("id"), ""))
 
     digest = Digest.model_validate(data)
     digest.overall_summary = digest.overall_summary.with_correct_count()

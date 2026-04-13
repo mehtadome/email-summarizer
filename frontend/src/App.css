@@ -277,6 +277,15 @@
   word-break: break-word;
 }
 
+.digest-email-card__header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem 0.75rem;
+  flex-shrink: 0;
+}
+
 .digest-email-card__link {
   flex-shrink: 0;
   font-size: 0.875rem;
@@ -288,6 +297,10 @@
 
 .digest-email-card__link:hover {
   border-bottom-color: var(--border);
+}
+
+.digest-email-card__link--external {
+  white-space: nowrap;
 }
 
 .digest-email-card__body {
