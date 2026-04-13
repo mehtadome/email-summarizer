@@ -4,7 +4,7 @@ import { AppShell } from '../components/AppShell'
 import { fetchSampleText, postSampleText, type SampleTextGetResponse } from '../api'
 
 const PLACEHOLDER =
-  'Main content goes here. Connect this UI to your backend when you are ready.'
+  'Recommendations will show here when a digest has been inferenced. Click the arrow to begin.'
 
 function HomeDigestPreview({
   data,
@@ -42,11 +42,17 @@ function HomeDigestPreview({
       <section className="home-summary" aria-label="Digest recommendations">
         {title ? <h2 className="home-summary__title">{title}</h2> : null}
         {hasRecs ? (
-          <ol className="home-recommendations">
-            {data.recommendations.map((item, i) => (
-              <li key={i}>{item}</li>
-            ))}
-          </ol>
+          <>
+            <ol className="home-recommendations">
+              {data.recommendations.map((item, i) => (
+                <li key={i}>{item}</li>
+              ))}
+            </ol>
+            <p className="home-recommendations-footnote">
+              All remaining emails are marketing, promotional, or automated notifications —
+              none require a response or action.
+            </p>
+          </>
         ) : null}
       </section>
     )
@@ -118,8 +124,8 @@ export function HomePage() {
         <Link
           to="/digest"
           className="digest-arrow-btn"
-          title="View full digest JSON"
-          aria-label="View full digest JSON"
+          title="View full digest"
+          aria-label="View full digest"
         >
           →
         </Link>
