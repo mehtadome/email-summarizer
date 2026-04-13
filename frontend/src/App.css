@@ -108,9 +108,43 @@
   max-width: 48rem;
 }
 
+.home-top__main {
+  flex: 1;
+  min-width: 0;
+}
+
 .home-top .lead {
   flex: 1;
   min-width: 0;
+}
+
+.home-summary--muted {
+  color: var(--text-muted);
+}
+
+.home-summary__title {
+  margin: 0 0 0.75rem;
+  font-size: 1.125rem;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--text-heading);
+  letter-spacing: -0.02em;
+}
+
+.home-recommendations {
+  margin: 0;
+  padding-left: 1.35rem;
+  line-height: 1.6;
+  color: var(--text);
+}
+
+.home-recommendations li {
+  margin-bottom: 0.55rem;
+  padding-left: 0.15rem;
+}
+
+.home-recommendations li:last-child {
+  margin-bottom: 0;
 }
 
 .digest-arrow-btn {
