@@ -4,6 +4,7 @@ import { AppShell } from '../components/AppShell'
 import { DigestEmailCard } from '../components/DigestEmailCard'
 import { fetchLatestDigest } from '../api'
 import type { Digest, DigestEmail } from '../types/digest'
+import { sortEmailsByImportance } from '../utils/sortByImportance'
 
 type LoadState = 'loading' | 'success' | 'error'
 
@@ -47,11 +48,11 @@ export function DigestPage() {
 
   const listEmails: DigestEmail[] = useMemo(() => {
     if (!digest) return []
-    return digest.emails
+    return sortEmailsByImportance(digest.emails)
   }, [digest])
 
   return (
-    <AppShell title={decodedId ? `Digest · ${decodedId}` : 'Digest'}>
+    <AppShell title={decodedId ? `Digest · ${decodedId}` : 'Digest'} titleLarge>
       <div className="digest-toolbar">
         <Link to="/" className="digest-back-link">
           ← Home

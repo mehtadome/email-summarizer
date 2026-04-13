@@ -9,13 +9,19 @@ export type DigestEmail = {
   summary: string
 }
 
+export type OverallSummary = {
+  title: string
+  recommendations: string[]
+}
+
 export type Digest = {
   generated_at: string
   period_from: string
   period_to: string
   total_emails: number
   emails: DigestEmail[]
-  overall_summary: string
+  /** Structured headline + list, or legacy plain string from old digests. */
+  overall_summary: OverallSummary | string
 }
 
 export function isDigest(value: unknown): value is Digest {

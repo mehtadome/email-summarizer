@@ -1,8 +1,6 @@
 """FastAPI server — exposes digest data and triggers to the frontend."""
 
 import json
-import subprocess
-import sys
 import threading
 from pathlib import Path
 
@@ -50,18 +48,55 @@ def post_sample_text() -> dict[str, str]:
     return {"text": "Hello from the backend! POST is working."}
 
 
-@app.get("/api/sample-text")
-def sample_text() -> dict[str, str]:
+def _sample_text_payload(digest: dict | None, empty_message: str | None = None) -> dict:
     """
-    Returns the overall summary from the latest digest, or a status message
-    when no digest has been run yet.  The frontend App.tsx reads this on load.
+    Build JSON for GET /api/sample-text: title + recommendations from overall_summary,
+    or legacy plain string / empty state.
+    """
+    if digest is None:
+        return {
+            "title": None,
+            "recommendations": [],
+            "message": empty_message or "No digest yet — run `python -m backend.main --now` to generate one.",
+        }
+
+    osum = digest.get("overall_summary")
+    if isinstance(osum, dict):
+        title = osum.get("title")
+        if title is not None and not isinstance(title, str):
+            title = str(title)
+        raw_recs = osum.get("recommendations", [])
+        if not isinstance(raw_recs, list):
+            raw_recs = []
+        recommendations = [str(x).strip() for x in raw_recs if str(x).strip()]
+        return {
+            "title": title or "",
+            "recommendations": recommendations,
+        }
+    if isinstance(osum, str) and osum.strip():
+        return {
+            "title": None,
+            "recommendations": [],
+            "legacy_text": osum,
+        }
+    return {
+        "title": None,
+        "recommendations": [],
+        "message": "(no summary)",
+    }
+
+
+@app.get("/api/sample-text")
+def sample_text() -> dict:
+    """
+    Overall digest headline + recommendation list from the latest file, or a status message.
     """
     paths = _all_digest_paths()
     if not paths:
-        return {"text": "No digest yet — run `python -m backend.main --now` to generate one."}
+        return _sample_text_payload(None)
 
     digest = _load_digest(paths[0])
-    return {"text": digest.get("overall_summary", "(no summary)")}
+    return _sample_text_payload(digest)
 
 
 @app.get("/api/digests")
@@ -84,24 +119,10 @@ def list_digests() -> list[dict]:
 
 @app.get("/api/digests/latest")
 def latest_digest() -> dict:
-    """
-    Run the digest pipeline and return the result.
-    Uses smart week logic: fetches since the last digest this week,
-    or since Monday 00:00 if this is the first pull of the week.
-    """
-    try:
-        subprocess.run(
-            [sys.executable, "-m", "backend.main", "--now"],
-            check=True,
-            cwd=Path(__file__).parent.parent,
-        )
-    except subprocess.CalledProcessError as exc:
-        raise HTTPException(status_code=500, detail=f"Digest run failed: {exc}")
-
+    """Return the newest digest JSON on disk (does not run the pipeline)."""
     paths = _all_digest_paths()
     if not paths:
-        raise HTTPException(status_code=500, detail="Digest ran but no output file was found.")
-
+        raise HTTPException(status_code=404, detail="No digests found.")
     return _load_digest(paths[0])
 
 

@@ -1,13 +1,71 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { AppShell } from '../components/AppShell'
-import { fetchSampleText, postSampleText } from '../api'
+import { fetchSampleText, postSampleText, type SampleTextGetResponse } from '../api'
 
 const PLACEHOLDER =
   'Main content goes here. Connect this UI to your backend when you are ready.'
 
+function HomeDigestPreview({
+  data,
+  loading,
+}: {
+  data: SampleTextGetResponse | null
+  loading: boolean
+}) {
+  if (loading) {
+    return (
+      <p className="lead home-summary--muted" role="status">
+        Loading…
+      </p>
+    )
+  }
+  if (!data) {
+    return <p className="lead">{PLACEHOLDER}</p>
+  }
+
+  const legacy = data.legacy_text?.trim()
+  if (legacy) {
+    return (
+      <p className="lead" role="status">
+        {legacy}
+      </p>
+    )
+  }
+
+  const title = data.title?.trim() ?? ''
+  const hasRecs = data.recommendations.length > 0
+  const hasStructured = title.length > 0 || hasRecs
+
+  if (hasStructured) {
+    return (
+      <section className="home-summary" aria-label="Digest recommendations">
+        {title ? <h2 className="home-summary__title">{title}</h2> : null}
+        {hasRecs ? (
+          <ol className="home-recommendations">
+            {data.recommendations.map((item, i) => (
+              <li key={i}>{item}</li>
+            ))}
+          </ol>
+        ) : null}
+      </section>
+    )
+  }
+
+  if (data.message) {
+    return (
+      <p className="lead" role="status">
+        {data.message}
+      </p>
+    )
+  }
+
+  return <p className="lead">{PLACEHOLDER}</p>
+}
+
 export function HomePage() {
-  const [mainText, setMainText] = useState(PLACEHOLDER)
+  const [preview, setPreview] = useState<SampleTextGetResponse | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(true)
   const [backendInfo, setBackendInfo] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [requestError, setRequestError] = useState<string | null>(null)
@@ -17,12 +75,18 @@ export function HomePage() {
 
     ;(async () => {
       try {
-        const { text } = await fetchSampleText()
-        if (!cancelled && text.length > 0) {
-          setMainText(text)
+        const data = await fetchSampleText()
+        if (!cancelled) {
+          setPreview(data)
         }
       } catch {
-        /* keep PLACEHOLDER */
+        if (!cancelled) {
+          setPreview(null)
+        }
+      } finally {
+        if (!cancelled) {
+          setPreviewLoading(false)
+        }
       }
     })()
 
@@ -46,9 +110,11 @@ export function HomePage() {
   }
 
   return (
-    <AppShell>
+    <AppShell title="Email Summarizer" titleLarge>
       <div className="home-top">
-        <p className="lead">{mainText}</p>
+        <div className="home-top__main">
+          <HomeDigestPreview data={preview} loading={previewLoading} />
+        </div>
         <Link
           to="/digest"
           className="digest-arrow-btn"

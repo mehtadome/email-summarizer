@@ -22,13 +22,18 @@ class EmailEntry(BaseModel):
     summary: str
 
 
+class OverallSummary(BaseModel):
+    title: str                      # e.g. "3 items require your attention"
+    recommendations: list[str]      # one entry per distinct topic/action
+
+
 class Digest(BaseModel):
     generated_at: str
     period_from: str
     period_to: str
     total_emails: int
     emails: list[EmailEntry]
-    overall_summary: str
+    overall_summary: OverallSummary
 
 
 # ---------------------------------------------------------------------------
@@ -36,15 +41,20 @@ class Digest(BaseModel):
 # ---------------------------------------------------------------------------
 
 _SYSTEM_PROMPT = """You are an email triage assistant. Your job is to read a batch of emails \
-and produce a structured end-of-day digest.
+and produce a structured digest.
 
 For each email assign an importance level:
-- "high"   — requires attention or action today (deadlines, direct asks, urgent issues, anything from a real person that needs a reply)
-- "medium" — worth reading but not time-sensitive (FYIs, updates, meeting digests)
+- "high"   — requires attention or action (deadlines, direct asks, urgent issues, anything from a real person that needs a reply)
+- "medium" — worth reading but not time-sensitive (FYIs, updates, meeting summaries)
 - "low"    — newsletters, marketing, automated notifications, receipts
 
 Write a concise 1–2 sentence summary per email.
-Write a brief overall_summary (3–5 sentences) covering the key things that need attention.
+
+For overall_summary:
+- "title": a short plain-English headline counting what needs attention, e.g. "3 items require your attention"
+- "recommendations": a list of strings, one per distinct topic or action item. Each recommendation should be \
+a self-contained sentence describing what to do and why. Group related emails into a single recommendation \
+where it makes sense. Ignore low-importance emails unless there is a pattern worth noting.
 
 Respond ONLY with valid JSON matching the schema provided. No markdown fences, no extra text."""
 
@@ -69,7 +79,10 @@ def summarize(emails: list[dict[str, Any]], since: datetime) -> Digest:
             period_to=period_to,
             total_emails=0,
             emails=[],
-            overall_summary="No emails received in this period.",
+            overall_summary=OverallSummary(
+                title="No emails this period",
+                recommendations=[],
+            ),
         )
 
     full_prompt = (
@@ -130,9 +143,9 @@ def summarize(emails: list[dict[str, Any]], since: datetime) -> Digest:
 # Merge helper
 # ---------------------------------------------------------------------------
 
-def update_overall_summary(entries: list[EmailEntry]) -> str:
+def update_overall_summary(entries: list[EmailEntry]) -> OverallSummary:
     """
-    Generate a new overall_summary from a list of already-summarized EmailEntry objects.
+    Generate a new OverallSummary from a list of already-summarized EmailEntry objects.
     Used when merging a new digest into an existing weekly one — avoids re-summarizing
     emails we've already processed, only needs the compact summaries.
     """
@@ -141,11 +154,19 @@ def update_overall_summary(entries: list[EmailEntry]) -> str:
         for e in entries
     )
 
+    schema = json.dumps({
+        "title": "N items require your attention",
+        "recommendations": ["<one action item or topic per entry>"]
+    }, indent=2)
+
     prompt = (
         "You are an email triage assistant.\n\n"
         "Below is a list of emails from this week, each with an importance level and a short summary.\n"
-        "Write a brief overall_summary (3–5 sentences) covering the key things that need attention.\n"
-        "Respond with ONLY the summary text — no JSON, no markdown, no preamble.\n\n"
+        "Produce an overall_summary with:\n"
+        "- \"title\": a short plain-English headline counting what needs attention\n"
+        "- \"recommendations\": a list of strings, one per distinct topic or action item.\n"
+        "  Group related emails. Ignore low-importance items unless there is a pattern worth noting.\n\n"
+        f"Return ONLY valid JSON matching this schema:\n{schema}\n\n"
         f"--- EMAILS ---\n{entries_text}"
     )
 
@@ -166,7 +187,11 @@ def update_overall_summary(entries: list[EmailEntry]) -> str:
             f"stderr: {result.stderr.strip()}"
         )
 
-    return result.stdout.strip()
+    raw = result.stdout.strip()
+    if raw.startswith("```"):
+        raw = "\n".join(l for l in raw.splitlines() if not l.startswith("```")).strip()
+
+    return OverallSummary.model_validate(json.loads(raw))
 
 
 # ---------------------------------------------------------------------------
@@ -193,7 +218,10 @@ def _output_schema() -> str:
             "period_from": "<ISO timestamp>",
             "period_to": "<ISO timestamp>",
             "total_emails": "<int>",
-            "overall_summary": "<string>",
+            "overall_summary": {
+                "title": "<short headline, e.g. '3 items require your attention'>",
+                "recommendations": ["<one action item or topic per entry>"],
+            },
             "emails": [
                 {
                     "id": "<string>",

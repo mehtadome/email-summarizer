@@ -14,7 +14,7 @@ export async function fetchDigests(): Promise<DigestListItem[]> {
   return getJson<DigestListItem[]>('/api/digests')
 }
 
-/** `GET /api/digests/latest` — full latest digest JSON. */
+/** `GET /api/digests/latest` — full latest digest JSON from disk (no pipeline run). */
 export async function fetchLatestDigest(): Promise<Digest> {
   const data = await getJson<unknown>('/api/digests/latest')
   if (!isDigest(data)) {
