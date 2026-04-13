@@ -147,6 +147,13 @@
   margin-bottom: 0;
 }
 
+.home-recommendations-footnote {
+  margin: 1rem 0 0;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
 .digest-arrow-btn {
   flex-shrink: 0;
   display: inline-flex;

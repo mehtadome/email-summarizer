@@ -43,6 +43,7 @@ First run will open a browser for Gmail OAuth. The token is saved to `token.json
 2. Download `credentials.json` from Google Cloud Console (Gmail API, OAuth 2.0 Desktop client)
 3. Place `credentials.json` in the project root
 4. `pip install -r requirements.txt`
+5. Optionally set `TIMEZONE=America/New_York` (or any IANA tz) in `.env` — defaults to `America/Los_Angeles`
 
 ## Architecture
 

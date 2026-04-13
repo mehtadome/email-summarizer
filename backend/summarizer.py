@@ -26,6 +26,17 @@ class OverallSummary(BaseModel):
     title: str                      # e.g. "3 items require your attention"
     recommendations: list[str]      # one entry per distinct topic/action
 
+    def with_correct_count(self) -> "OverallSummary":
+        """Return a copy with the title count matching the actual recommendations length."""
+        _words = [
+            "zero", "one", "two", "three", "four", "five",
+            "six", "seven", "eight", "nine", "ten",
+        ]
+        n = len(self.recommendations)
+        word = _words[n] if n < len(_words) else str(n)
+        noun = "item" if n == 1 else "items"
+        return self.model_copy(update={"title": f"{word.capitalize()} {noun} require your attention"})
+
 
 class Digest(BaseModel):
     generated_at: str
@@ -54,7 +65,9 @@ For overall_summary:
 - "title": a short plain-English headline counting what needs attention, e.g. "3 items require your attention"
 - "recommendations": a list of strings, one per distinct topic or action item. Each recommendation should be \
 a self-contained sentence describing what to do and why. Group related emails into a single recommendation \
-where it makes sense. Ignore low-importance emails unless there is a pattern worth noting.
+where it makes sense. Ignore low-importance emails unless there is a pattern worth noting. \
+Never include a recommendation whose message is that nothing needs to be done. \
+Do not reference email numbers or indices (e.g. "email #3") in recommendations.
 
 Respond ONLY with valid JSON matching the schema provided. No markdown fences, no extra text."""
 
@@ -136,7 +149,9 @@ def summarize(emails: list[dict[str, Any]], since: datetime) -> Digest:
     data.setdefault("period_to", period_to)
     data.setdefault("total_emails", len(emails))
 
-    return Digest.model_validate(data)
+    digest = Digest.model_validate(data)
+    digest.overall_summary = digest.overall_summary.with_correct_count()
+    return digest
 
 
 # ---------------------------------------------------------------------------
@@ -191,7 +206,7 @@ def update_overall_summary(entries: list[EmailEntry]) -> OverallSummary:
     if raw.startswith("```"):
         raw = "\n".join(l for l in raw.splitlines() if not l.startswith("```")).strip()
 
-    return OverallSummary.model_validate(json.loads(raw))
+    return OverallSummary.model_validate(json.loads(raw)).with_correct_count()
 
 
 # ---------------------------------------------------------------------------
