@@ -23,6 +23,16 @@ export async function fetchLatestDigest(): Promise<Digest> {
   return data
 }
 
+/** `GET /api/digests/{filename}` — a specific digest file (e.g. `2026-04-13_10-41.json`). */
+export async function fetchDigestByFilename(filename: string): Promise<Digest> {
+  const safe = encodeURIComponent(filename)
+  const data = await getJson<unknown>(`/api/digests/${safe}`)
+  if (!isDigest(data)) {
+    throw new Error('Invalid digest response from server.')
+  }
+  return data
+}
+
 /** Response from `GET /api/digests/refresh` (202 — job started in background). */
 export type RefreshDigestResponse = { status: 'started' }
 

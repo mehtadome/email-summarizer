@@ -205,7 +205,10 @@ export function HomePage() {
           →
         </Link>
       </div>
-      <div className="actions">
+      <div className="actions-row">
+        <Link to="/old-digests" className="btn btn--link">
+          Old digests
+        </Link>
         <button
           type="button"
           className="btn"

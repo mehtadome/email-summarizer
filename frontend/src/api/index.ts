@@ -8,6 +8,7 @@ export {
   type SampleTextPostResponse,
 } from './sampleText'
 export {
+  fetchDigestByFilename,
   fetchDigests,
   fetchDigestJobStatus,
   fetchLatestDigest,

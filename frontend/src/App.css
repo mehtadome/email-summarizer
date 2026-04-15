@@ -170,6 +170,22 @@
   margin-top: 1.25rem;
 }
 
+.actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
+.btn--link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  box-sizing: border-box;
+}
+
 .btn {
   font: inherit;
   cursor: pointer;
@@ -366,6 +382,45 @@
 }
 
 .digest-inbox-tab--active:hover {
+  background: var(--text-heading);
+  opacity: 0.92;
+}
+
+.digest-archive-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 1rem;
+  width: 100%;
+  max-width: 100%;
+}
+
+.digest-archive-tab {
+  font: inherit;
+  cursor: pointer;
+  padding: 0.4rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--btn-bg);
+  color: var(--text-heading);
+  font-size: 0.875rem;
+  font-weight: 500;
+  max-width: 100%;
+  text-align: left;
+  line-height: 1.35;
+}
+
+.digest-archive-tab:hover {
+  background: var(--btn-bg-hover);
+}
+
+.digest-archive-tab--active {
+  background: var(--text-heading);
+  color: var(--bg);
+  border-color: var(--text-heading);
+}
+
+.digest-archive-tab--active:hover {
   background: var(--text-heading);
   opacity: 0.92;
 }
