@@ -5,7 +5,7 @@
 }
 
 .app-shell__header {
-  padding: 1rem 1.25rem;
+  padding: 1rem clamp(1rem, 4vw, 2.5rem);
   border-bottom: 1px solid var(--border);
 }
 
@@ -147,19 +147,22 @@
 
 .app-shell__main {
   flex: 1;
-  padding: 1.5rem 1.25rem;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 1.5rem clamp(1rem, 4vw, 2.5rem);
   text-align: left;
 }
 
 .app-shell__footer {
-  padding: 0.75rem 1.25rem;
+  padding: 0.75rem clamp(1rem, 4vw, 2.5rem);
   border-top: 1px solid var(--border);
   font-size: 0.875rem;
 }
 
 .lead {
   margin: 0;
-  max-width: 40rem;
+  max-width: 100%;
   line-height: 1.6;
 }
 
@@ -188,14 +191,14 @@
 
 .request-error {
   margin: 0.75rem 0 0;
-  max-width: 40rem;
+  max-width: 100%;
   color: var(--error, #b91c1c);
   font-size: 0.9rem;
 }
 
 .backend-info {
   margin: 1rem 0 0;
-  max-width: 48rem;
+  max-width: 100%;
   padding: 0.75rem 1rem;
   border-radius: 6px;
   border: 1px solid var(--border);
@@ -215,7 +218,8 @@
   display: flex;
   align-items: flex-start;
   gap: 1rem;
-  max-width: 48rem;
+  width: 100%;
+  max-width: 100%;
 }
 
 .home-top__main {
@@ -226,6 +230,11 @@
 .home-top .lead {
   flex: 1;
   min-width: 0;
+}
+
+.home-summary {
+  width: 100%;
+  max-width: 100%;
 }
 
 .home-summary--muted {
@@ -315,7 +324,7 @@
 
 .digest-grabbing {
   margin: 0 0 1rem;
-  max-width: 36rem;
+  max-width: 100%;
   line-height: 1.55;
   color: var(--text);
 }
@@ -330,7 +339,8 @@
   flex-wrap: wrap;
   gap: 0.35rem;
   margin-bottom: 1rem;
-  max-width: 52rem;
+  width: 100%;
+  max-width: 100%;
 }
 
 .digest-inbox-tab {
@@ -364,7 +374,8 @@
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
-  max-width: 52rem;
+  width: 100%;
+  max-width: 100%;
 }
 
 .digest-email-card {

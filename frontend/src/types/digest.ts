@@ -2,7 +2,9 @@
 
 export type DigestEmail = {
   id: string
-  /** Gmail account selector for deep links (e.g. `"0"`). */
+  /** Gmail thread id — required for `#all/...` deep links (message id is not valid here). */
+  thread_id: string
+  /** Gmail account selector for deep links (e.g. email address or `"0"`). */
   account: string
   sender: string
   subject: string
@@ -35,6 +37,7 @@ export function isDigest(value: unknown): value is Digest {
     const row = e as Record<string, unknown>
     return (
       typeof row.id === 'string' &&
+      typeof row.thread_id === 'string' &&
       typeof row.account === 'string'
     )
   })
