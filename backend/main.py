@@ -8,7 +8,8 @@ Usage:
 
 import json
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
+from email.utils import parsedate_to_datetime as _parse_rfc2822
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -93,17 +94,65 @@ def get_fetch_since() -> datetime:
     return since
 
 
+def _received_date(email: dict) -> date | None:
+    """Parse an email's received_at (RFC 2822) and return the local date, or None."""
+    try:
+        return _parse_rfc2822(email["received_at"]).astimezone(_TZ).date()
+    except Exception:
+        return None
+
+
+def _split_by_today(emails: list[dict], today: date) -> tuple[list[dict], list[dict]]:
+    """
+    Split emails into (prev_day, today) buckets.
+    Emails that can't be parsed default to today's bucket.
+    """
+    prev, today_emails = [], []
+    for e in emails:
+        d = _received_date(e)
+        if d is not None and d < today:
+            prev.append(e)
+        else:
+            today_emails.append(e)
+    return prev, today_emails
+
+
+def _merge_into_file(path: Path, data: dict, new_entries: list[EmailEntry],
+                     new_recs: list[str], write_time: datetime) -> None:
+    """Append new email entries and recommendations into an existing digest file."""
+    existing_entries = [
+        EmailEntry(**{**e, "account": e.get("account", ""), "thread_id": e.get("thread_id", "")})
+        for e in data["emails"]
+    ]
+    all_entries = existing_entries + new_entries
+    existing_recs = data.get("overall_summary", {}).get("recommendations", [])
+    merged_overall = OverallSummary(
+        title="",
+        recommendations=existing_recs + new_recs,
+    ).with_correct_count()
+    merged = Digest(
+        generated_at=write_time.isoformat(timespec="seconds"),
+        period_from=data["period_from"],
+        period_to=write_time.isoformat(timespec="seconds"),
+        total_emails=len(all_entries),
+        emails=all_entries,
+        overall_summary=merged_overall,
+    )
+    path.write_text(json.dumps(merged.model_dump(), indent=2, ensure_ascii=False))
+
+
 def run_digest(since: datetime | None = None) -> Path | None:
     """
     Fetch emails since the last run, summarize, and persist.
 
-    Same-day logic: if a digest file for today already exists, new emails are
-    appended and recommendations are concatenated (no re-inference on existing
-    emails). generated_at is updated so subsequent runs pick up from here.
+    Same-day: appends new emails and recommendations into today's file.
 
-    New day: creates a fresh file named with the current timestamp.
+    First run of the day: splits fetched emails by received date.
+      - Emails from previous day(s) are summarized and merged into the previous
+        day's file. Their recommendations are carried over to today's digest
+        prefixed with a date tag (e.g. "[Apr 14]") so they surface in today's view.
+      - Emails received today go into a new file for today.
     """
-    # Capture run start time for the filename — kept stable across summarization.
     run_start = datetime.now()
 
     if since is None:
@@ -119,27 +168,24 @@ def run_digest(since: datetime | None = None) -> Path | None:
         print("[digest] No new emails since last digest.")
         return today_path or _latest_digest()[0]
 
-    print(f"[digest] Summarizing {len(new_emails)} email(s)...")
-    new_digest = summarize(new_emails, since=since)
-
-    # Capture write time after summarization so generated_at is as fresh as possible.
-    write_time = datetime.now()
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     if today_path and today_data:
         # Same-day merge: append emails and recommendations, recompute title.
+        print(f"[digest] Summarizing {len(new_emails)} new email(s)...")
+        new_digest = summarize(new_emails, since=since)
+        write_time = datetime.now()
+
         existing_entries = [
             EmailEntry(**{**e, "account": e.get("account", ""), "thread_id": e.get("thread_id", "")})
             for e in today_data["emails"]
         ]
         all_entries = existing_entries + new_digest.emails
-
         existing_recs = today_data.get("overall_summary", {}).get("recommendations", [])
         merged_overall = OverallSummary(
             title="",
             recommendations=existing_recs + new_digest.overall_summary.recommendations,
         ).with_correct_count()
-
         merged = Digest(
             generated_at=write_time.isoformat(timespec="seconds"),
             period_from=today_data["period_from"],
@@ -148,19 +194,57 @@ def run_digest(since: datetime | None = None) -> Path | None:
             emails=all_entries,
             overall_summary=merged_overall,
         )
-
         today_path.write_text(json.dumps(merged.model_dump(), indent=2, ensure_ascii=False))
         print(f"[digest] Merged into today's digest → {today_path} ({merged.total_emails} total emails)")
         return today_path
 
-    # First run of the day — new file.
-    new_digest.generated_at = write_time.isoformat(timespec="seconds")
-    new_digest.period_to = write_time.isoformat(timespec="seconds")
-    out_path = OUTPUT_DIR / f"{run_start.strftime('%Y-%m-%d_%H-%M')}.json"
-    out_path.write_text(json.dumps(new_digest.model_dump(), indent=2, ensure_ascii=False))
-    print(f"[digest] Saved → {out_path}")
-    print(f"[digest] {new_digest.total_emails} emails | {new_digest.overall_summary.title}...")
-    return out_path
+    # First run of the day — split emails by received date.
+    today_date = datetime.now(_TZ).date()
+    prev_emails, todays_emails = _split_by_today(new_emails, today_date)
+
+    carried_recs: list[str] = []
+
+    if prev_emails:
+        print(f"[digest] {len(prev_emails)} email(s) from previous day — summarizing into yesterday's file...")
+        prev_digest = summarize(prev_emails, since=since)
+        write_time = datetime.now()
+
+        prev_path, prev_data = _latest_digest()
+        if prev_path and prev_data:
+            _merge_into_file(prev_path, prev_data, prev_digest.emails,
+                             prev_digest.overall_summary.recommendations, write_time)
+            print(f"[digest] Updated previous day's digest → {prev_path}")
+
+        # Tag recommendations for carry-over into today's view.
+        prev_date = today_date - timedelta(days=1)
+        tag = f"[{prev_date.strftime('%b')} {prev_date.day}]"
+        carried_recs = [f"{tag} {r}" for r in prev_digest.overall_summary.recommendations]
+
+    if todays_emails:
+        print(f"[digest] Summarizing {len(todays_emails)} email(s) for today...")
+        today_midnight = datetime.now(_TZ).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        ).replace(tzinfo=None)
+        today_digest = summarize(todays_emails, since=today_midnight)
+        write_time = datetime.now()
+
+        if carried_recs:
+            today_digest.overall_summary = OverallSummary(
+                title="",
+                recommendations=carried_recs + today_digest.overall_summary.recommendations,
+            ).with_correct_count()
+
+        today_digest.generated_at = write_time.isoformat(timespec="seconds")
+        today_digest.period_to = write_time.isoformat(timespec="seconds")
+        out_path = OUTPUT_DIR / f"{run_start.strftime('%Y-%m-%d_%H-%M')}.json"
+        out_path.write_text(json.dumps(today_digest.model_dump(), indent=2, ensure_ascii=False))
+        print(f"[digest] Saved → {out_path}")
+        print(f"[digest] {today_digest.total_emails} emails | {today_digest.overall_summary.title}...")
+        return out_path
+
+    # Only previous-day emails, no emails received today.
+    prev_path, _ = _latest_digest()
+    return prev_path
 
 
 def main():

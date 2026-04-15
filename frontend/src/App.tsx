@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { DigestPage } from './pages/DigestPage'
 import { HomePage } from './pages/HomePage'
+import { OldDigestsPage } from './pages/OldDigestsPage'
 import { SettingsPage } from './pages/SettingsPage'
 import './App.css'
 
@@ -9,6 +10,8 @@ function App() {
     <Routes>
       <Route path="/" element={<HomePage />} />
       <Route path="/settings" element={<SettingsPage />} />
+      <Route path="/old-digests" element={<OldDigestsPage />} />
+      <Route path="/old-digests/:filename" element={<OldDigestsPage />} />
       <Route path="/digest" element={<DigestPage />} />
       <Route path="/digest/:emailId" element={<DigestPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
