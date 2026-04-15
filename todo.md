@@ -26,7 +26,7 @@
 ## Nits
 
 - [ ] Stale recommendations: when a later email in the same day contradicts an earlier recommendation (e.g. a meeting follow-up rec when the meeting was subsequently cancelled), the older rec is not removed — same-day recs are concatenated, not reconciled
-- [ ] Compact status-poll log lines in the backend — polling `/api/digests/status` during a refresh run produces an endless scroll; consider suppressing or grouping these access log entries
+- [x] Compact status-poll log lines in the backend — polling `/api/digests/status` during a refresh run produces an endless scroll; consider suppressing or grouping these access log entries
 
 ## Up Next: Inference Optimization
 

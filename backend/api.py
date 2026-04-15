@@ -211,5 +211,12 @@ def trigger_run() -> dict[str, str]:
 # ---------------------------------------------------------------------------
 
 def start(host: str = "127.0.0.1", port: int = 8000):
+    import logging
     import uvicorn
+
+    class _SuppressStatusPoll(logging.Filter):
+        def filter(self, record: logging.LogRecord) -> bool:
+            return "/api/digests/status" not in record.getMessage()
+
+    logging.getLogger("uvicorn.access").addFilter(_SuppressStatusPoll())
     uvicorn.run("backend.api:app", host=host, port=port, reload=True)
