@@ -3,6 +3,8 @@ import { SettingsGearLink } from './SettingsGearLink'
 
 type AppShellProps = {
   title?: string
+  /** Shown immediately next to the title (e.g. home refresh). */
+  titleAccessory?: ReactNode
   /** Extra content to the left of the settings gear (e.g. digest actions). */
   headerRight?: ReactNode
   /** Larger page title (e.g. digest view). */
@@ -12,6 +14,7 @@ type AppShellProps = {
 
 export function AppShell({
   title = 'Email Summarizer',
+  titleAccessory,
   headerRight,
   titleLarge = false,
   children,
@@ -20,15 +23,18 @@ export function AppShell({
     <div className="app-shell">
       <header className="app-shell__header">
         <div className="app-shell__header-row">
-          <h1
-            className={
-              titleLarge
-                ? 'app-shell__title app-shell__title--large'
-                : 'app-shell__title'
-            }
-          >
-            {title}
-          </h1>
+          <div className="app-shell__title-cluster">
+            <h1
+              className={
+                titleLarge
+                  ? 'app-shell__title app-shell__title--large'
+                  : 'app-shell__title'
+              }
+            >
+              {title}
+            </h1>
+            {titleAccessory}
+          </div>
           <div className="app-shell__header-actions">
             {headerRight}
             <SettingsGearLink />

@@ -26,6 +26,15 @@
 ## Nits
 
 - [ ] Stale recommendations: when a later email in the same day contradicts an earlier recommendation (e.g. a meeting follow-up rec when the meeting was subsequently cancelled), the older rec is not removed — same-day recs are concatenated, not reconciled
+- [ ] Compact status-poll log lines in the backend — polling `/api/digests/status` during a refresh run produces an endless scroll; consider suppressing or grouping these access log entries
+
+## Up Next: Inference Optimization
+
+- [ ] Parallel batch splitting — chunk emails into groups of ~15-20 and summarize concurrently; keeps wall time under ~60s regardless of email count
+- [ ] Frequent incremental runs via scheduler — pull every few hours so each run processes ~10-15 emails instead of accumulating a large backlog
+- [ ] Body truncation tuning — reduce per-email body cap from 800 to ~400 chars to shrink prompt size and speed up Claude response
+- [ ] Importance pre-filter — skip obvious low-signal emails (marketing headers, known promotional sender domains) before sending to Claude
+- [ ] Dedicated low fast-path — classify importance in one cheap call, then only summarize high/medium emails in full
 
 ## Future
 

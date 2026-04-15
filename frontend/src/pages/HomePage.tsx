@@ -1,7 +1,13 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { AppShell } from '../components/AppShell'
-import { fetchSampleText, postSampleText, type SampleTextGetResponse } from '../api'
+import {
+  fetchSampleText,
+  postSampleText,
+  refreshDigest,
+  waitForDigestJobComplete,
+  type SampleTextGetResponse,
+} from '../api'
 
 const PLACEHOLDER =
   'Recommendations will show here when a digest has been inferenced. Click the arrow to begin.'
@@ -69,12 +75,54 @@ function HomeDigestPreview({
   return <p className="lead">{PLACEHOLDER}</p>
 }
 
+function RefreshDigestButton({
+  refreshing,
+  onClick,
+}: {
+  refreshing: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      className="btn app-shell__refresh-btn"
+      disabled={refreshing}
+      onClick={onClick}
+      title="Re-fetch mail from Gmail and regenerate the digest"
+      aria-label={refreshing ? 'Refreshing digest from Gmail' : 'Refresh digest from Gmail'}
+    >
+      <svg
+        className={
+          refreshing ? 'app-shell__refresh-icon app-shell__refresh-icon--spinning' : 'app-shell__refresh-icon'
+        }
+        width="16"
+        height="16"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden
+      >
+        <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+        <path d="M21 3v5h-5" />
+        <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+        <path d="M3 21v-5h5" />
+      </svg>
+      {refreshing ? 'Refreshing…' : 'Refresh'}
+    </button>
+  )
+}
+
 export function HomePage() {
   const [preview, setPreview] = useState<SampleTextGetResponse | null>(null)
   const [previewLoading, setPreviewLoading] = useState(true)
   const [backendInfo, setBackendInfo] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [requestError, setRequestError] = useState<string | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
+  const [refreshError, setRefreshError] = useState<string | null>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -115,8 +163,35 @@ export function HomePage() {
     }
   }
 
+  async function handleRefreshDigest() {
+    setRefreshing(true)
+    setRefreshError(null)
+    try {
+      await refreshDigest()
+      await waitForDigestJobComplete()
+      const data = await fetchSampleText()
+      setPreview(data)
+    } catch (err) {
+      const msg =
+        err instanceof Error ? err.message : 'Refresh failed.'
+      setRefreshError(msg)
+    } finally {
+      setRefreshing(false)
+    }
+  }
+
   return (
-    <AppShell title="Email Summarizer" titleLarge>
+    <AppShell
+      title="Email Summarizer"
+      titleLarge
+      titleAccessory={
+        <RefreshDigestButton
+          refreshing={refreshing}
+          onClick={() => void handleRefreshDigest()}
+        />
+      }
+    >
+      {refreshError ? <p className="request-error">{refreshError}</p> : null}
       <div className="home-top">
         <div className="home-top__main">
           <HomeDigestPreview data={preview} loading={previewLoading} />

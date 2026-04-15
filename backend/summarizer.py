@@ -116,12 +116,14 @@ def summarize(emails: list[dict[str, Any]], since: datetime) -> Digest:
     # it as the auth method and rejects it instead of falling back to the OAuth
     # token stored in the macOS keychain.
     env = {k: v for k, v in os.environ.items() if k != "ANTHROPIC_API_KEY"}
+    # Allow 10s base + 5s per email, capped at 10 minutes.
+    timeout = min(10 + 5 * len(emails), 600)
     result = subprocess.run(
         ["/opt/homebrew/bin/claude", "-p", "--no-session-persistence"],
         input=full_prompt,
         capture_output=True,
         text=True,
-        timeout=120,
+        timeout=timeout,
         env=env,
     )
 

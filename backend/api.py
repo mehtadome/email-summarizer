@@ -2,6 +2,7 @@
 
 import json
 import threading
+from datetime import datetime
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
@@ -17,6 +18,12 @@ app.add_middleware(
 )
 
 _DIGESTS_DIR = Path(__file__).parent.parent / "digests"
+
+# ---------------------------------------------------------------------------
+# In-memory job status (single-process; resets on server restart)
+# ---------------------------------------------------------------------------
+
+_job: dict = {"running": False, "last_run_at": None, "error": None}
 
 
 # ---------------------------------------------------------------------------
@@ -124,6 +131,47 @@ def latest_digest() -> dict:
     if not paths:
         raise HTTPException(status_code=404, detail="No digests found.")
     return _load_digest(paths[0])
+
+
+@app.get("/api/digests/status")
+def digest_status() -> dict:
+    """Return whether a digest job is currently running and when it last completed."""
+    return {
+        "running": _job["running"],
+        "last_run_at": _job["last_run_at"],
+        "error": _job["error"],
+    }
+
+
+@app.get("/api/digests/refresh", status_code=202)
+def refresh_digest() -> dict:
+    """
+    Kick off a digest run in the background and return immediately.
+    Poll GET /api/digests/status until running=false, then reload GET /api/digests/latest.
+    Returns 409 if a run is already in progress.
+    """
+    if _job["running"]:
+        raise HTTPException(status_code=409, detail="A digest run is already in progress.")
+
+    from backend.main import run_digest
+
+    # Set before starting the thread so /api/digests/status cannot report idle with a stale error,
+    # and the client never polls running=false before the job has actually started.
+    _job["running"] = True
+    _job["error"] = None
+
+    def _run():
+        try:
+            run_digest()
+            _job["last_run_at"] = datetime.now().isoformat(timespec="seconds")
+        except Exception as exc:
+            _job["error"] = str(exc)
+            print(f"[api] refresh error: {exc}")
+        finally:
+            _job["running"] = False
+
+    threading.Thread(target=_run, daemon=True).start()
+    return {"status": "started"}
 
 
 @app.get("/api/digests/{filename}")
