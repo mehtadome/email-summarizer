@@ -103,7 +103,8 @@ def run_digest(since: datetime | None = None) -> Path | None:
 
     New day: creates a fresh file named with the current timestamp.
     """
-    now = datetime.now()
+    # Capture run start time for the filename — kept stable across summarization.
+    run_start = datetime.now()
 
     if since is None:
         since = get_fetch_since()
@@ -121,11 +122,16 @@ def run_digest(since: datetime | None = None) -> Path | None:
     print(f"[digest] Summarizing {len(new_emails)} email(s)...")
     new_digest = summarize(new_emails, since=since)
 
+    # Capture write time after summarization so generated_at is as fresh as possible.
+    write_time = datetime.now()
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     if today_path and today_data:
         # Same-day merge: append emails and recommendations, recompute title.
-        existing_entries = [EmailEntry(**e) for e in today_data["emails"]]
+        existing_entries = [
+            EmailEntry(**{**e, "account": e.get("account", ""), "thread_id": e.get("thread_id", "")})
+            for e in today_data["emails"]
+        ]
         all_entries = existing_entries + new_digest.emails
 
         existing_recs = today_data.get("overall_summary", {}).get("recommendations", [])
@@ -135,9 +141,9 @@ def run_digest(since: datetime | None = None) -> Path | None:
         ).with_correct_count()
 
         merged = Digest(
-            generated_at=now.isoformat(timespec="seconds"),
+            generated_at=write_time.isoformat(timespec="seconds"),
             period_from=today_data["period_from"],
-            period_to=now.isoformat(timespec="seconds"),
+            period_to=write_time.isoformat(timespec="seconds"),
             total_emails=len(all_entries),
             emails=all_entries,
             overall_summary=merged_overall,
@@ -148,7 +154,9 @@ def run_digest(since: datetime | None = None) -> Path | None:
         return today_path
 
     # First run of the day — new file.
-    out_path = OUTPUT_DIR / f"{now.strftime('%Y-%m-%d_%H-%M')}.json"
+    new_digest.generated_at = write_time.isoformat(timespec="seconds")
+    new_digest.period_to = write_time.isoformat(timespec="seconds")
+    out_path = OUTPUT_DIR / f"{run_start.strftime('%Y-%m-%d_%H-%M')}.json"
     out_path.write_text(json.dumps(new_digest.model_dump(), indent=2, ensure_ascii=False))
     print(f"[digest] Saved → {out_path}")
     print(f"[digest] {new_digest.total_emails} emails | {new_digest.overall_summary.title}...")

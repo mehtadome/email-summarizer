@@ -1,12 +1,14 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { DigestPage } from './pages/DigestPage'
 import { HomePage } from './pages/HomePage'
+import { SettingsPage } from './pages/SettingsPage'
 import './App.css'
 
 function App() {
   return (
     <Routes>
       <Route path="/" element={<HomePage />} />
+      <Route path="/settings" element={<SettingsPage />} />
       <Route path="/digest" element={<DigestPage />} />
       <Route path="/digest/:emailId" element={<DigestPage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
