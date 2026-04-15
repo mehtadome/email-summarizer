@@ -17,6 +17,7 @@
 
 ## Up Next
 
+- [ ] **Test day-boundary split on first run of 2026-04-16** — verify emails received before midnight land in the Apr 15 file with a `[Apr 15]` tag on their recommendations in today's new digest
 - [x] Merge weekly digest files into one — instead of creating a new JSON each pull, merge the new emails into the existing weekly file and rename it to the latest pull time (e.g. pulling on Sunday at 5:44pm after a Wednesday pull produces a single `2026-04-13_17-44.json` containing all emails since Monday)
 - [ ] Build out the digest browser UI (list + detail view for past digests)
 - [ ] Evolve the importance algorithm with user feedback (thumbs up/down on digests)
