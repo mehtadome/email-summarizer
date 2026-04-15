@@ -1,5 +1,6 @@
 export { API_BASE } from './config'
 export { getJson } from './client'
+export { fetchAccounts } from './accounts'
 export {
   fetchSampleText,
   postSampleText,

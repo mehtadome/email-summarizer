@@ -1,6 +1,7 @@
 """FastAPI server — exposes digest data and triggers to the frontend."""
 
 import json
+import os
 import threading
 from datetime import datetime
 from pathlib import Path
@@ -43,6 +44,13 @@ def _load_digest(path: Path) -> dict:
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
+
+@app.get("/api/accounts")
+def list_accounts() -> list[str]:
+    """Return configured Gmail accounts in order (index = u/N selector for deep links)."""
+    raw = os.getenv("GMAIL_ACCOUNTS", "")
+    return [a.strip() for a in raw.split(",") if a.strip()]
+
 
 @app.get("/")
 def root() -> dict[str, str]:

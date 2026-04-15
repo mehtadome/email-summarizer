@@ -1,3 +1,4 @@
+import { useAccounts } from '../contexts/AccountsContext'
 import type { DigestEmail } from '../types/digest'
 import { formatReceivedAtPacific } from '../utils/formatReceivedAtPt'
 import { parseSenderParts } from '../utils/parseSender'
@@ -15,6 +16,7 @@ function importanceClass(importance: string): string {
 }
 
 export function DigestEmailCard({ email }: Props) {
+  const { accounts } = useAccounts()
   const imp = importanceClass(email.importance)
   const timeLabel = formatReceivedAtPacific(email.received_at)
   const headingId = `email-heading-${email.id}`
@@ -22,7 +24,8 @@ export function DigestEmailCard({ email }: Props) {
     email.sender,
   )
 
-  const gmailHref = `https://mail.google.com/mail/u/${email.account.trim()}/#all/${email.thread_id.trim()}`
+  const accountIndex = accounts.indexOf(email.account.trim())
+  const gmailHref = `https://mail.google.com/mail/u/${accountIndex === -1 ? 0 : accountIndex}/#all/${email.thread_id.trim()}`
 
   return (
     <article
