@@ -1,30 +1,21 @@
-> **Work in progress** — core plumbing is wired up; Gmail integration and the full digest UI are actively being built.
-
 # Email Summarizer
 
-A personal web app for staying on top of your inbox without living in it. The goal is a rich UI — not a terminal printout — where you can browse detailed email digests, see importance scores at a glance, and catch anything that matters before clocking out at 5 PM.
+A personal web app for staying on top of your inbox without living in it. Browse daily email digests with importance scores at a glance, catch anything that matters, and trigger a fresh run whenever you want.
 
-Built as a learning project to explore agentic AI in a practical context. The current version is a working skeleton; the plan is to evolve it toward richer per-email detail, user feedback on importance scores, and eventually push notifications for high-priority emails.
+Built as a learning project to explore agentic AI in a practical context.
 
 ## How it works
 
-1. **Fetch** — `backend/fetcher.py` authenticates with Gmail via OAuth2 and pulls emails from the last N hours.
-2. **Summarize** — `backend/summarizer.py` sends them to Claude via the `claude-agent-sdk`, which routes through your local Claude Pro session (no separate API key needed). Claude assigns each email an importance level (high / medium / low) based on content — no sender whitelisting.
-3. **Schedule** — `backend/scheduler.py` fires the job daily at 17:00 using APScheduler.
-4. **Serve** — `backend/api.py` exposes a FastAPI server on port 8000 so the frontend can fetch digests and trigger runs on demand.
-5. **Display** — a React + TypeScript + Vite frontend at `frontend/` shows the latest digest and lets you browse history.
-
-## Current state
-
-The frontend and backend are connected end-to-end. Clicking "Fetch digest info from backend" POSTs to the FastAPI server and displays the response in the dark-themed React UI.
-
-Next milestone: wire up real Gmail credentials so the digest pipeline runs against a live inbox.
+1. **Fetch** — `backend/fetcher.py` authenticates with Gmail via OAuth2 and pulls emails since the last digest run (falls back to 7 days on first run). Multiple accounts are supported via `GMAIL_ACCOUNTS`.
+2. **Summarize** — `backend/summarizer.py` sends emails to the `claude` CLI, which routes through your local Claude Pro session (no separate API key needed). Claude assigns each email an importance level (high / medium / low) and writes a short summary.
+3. **Serve** — `backend/api.py` exposes a FastAPI server on port 8000 so the frontend can fetch digests and trigger runs on demand.
+4. **Display** — a React + TypeScript + Vite frontend at `frontend/` shows the latest digest headline + recommendations and lets you browse history by date.
 
 ## Stack
 
 | Layer | Tech |
 |---|---|
-| LLM | Anthropic Claude (`claude-opus-4-6`) |
+| LLM | Anthropic Claude (via `claude` CLI, local Pro session) |
 | Backend | Python · FastAPI · APScheduler |
 | Gmail auth | `google-auth-oauthlib` · OAuth2 |
 | Frontend | React · TypeScript · Vite |
@@ -35,7 +26,7 @@ Next milestone: wire up real Gmail credentials so the digest pipeline runs again
 
 - Python 3.11+
 - Node 18+
-- Claude Code CLI with an active Pro subscription
+- Claude Code CLI with an active Pro subscription (`claude` must be on your PATH)
 - A Google Cloud project with the Gmail API enabled (see below)
 
 ### Setup
@@ -53,7 +44,14 @@ pip install -r requirements.txt
 # 3. Frontend dependencies
 cd frontend && npm install && cd ..
 
-# 4. Gmail credentials
+# 4. Environment
+cp .env.example .env
+# Edit .env:
+#   GMAIL_ACCOUNTS=you@gmail.com,other@gmail.com   (at least one required)
+#   TIMEZONE=America/New_York                        (optional, defaults to America/Los_Angeles)
+#   ANTHROPIC_API_KEY is not needed — the claude CLI uses your Pro session
+
+# 5. Gmail credentials
 # Download credentials.json from Google Cloud Console
 # (APIs & Services → Credentials → OAuth 2.0 Desktop client)
 # Place it in the project root — it is gitignored
@@ -69,14 +67,12 @@ This starts the FastAPI backend (`:8000`) and the Vite frontend (`:5173`) togeth
 
 Open [http://localhost:5173](http://localhost:5173).
 
-On first run, a browser window will open for Gmail OAuth consent. The resulting token is saved to `token.json` (gitignored).
+On first run, a browser window will open for Gmail OAuth consent per account. Tokens are saved to `token.json` / `token_<account>.json` (gitignored).
 
-To run a digest immediately without waiting for 5 PM:
+To run a digest immediately without waiting for the 5 PM scheduler:
 
 ```bash
 python -m backend.main --now
-# or fetch the last 72 hours:
-python -m backend.main --now --hours 72
 ```
 
 ### Gmail API setup (one-time)
@@ -85,13 +81,29 @@ python -m backend.main --now --hours 72
 2. Enable the **Gmail API** under APIs & Services → Library.
 3. Create an **OAuth 2.0 Client ID** (Application type: Desktop app).
 4. Download the JSON file and save it as `credentials.json` in the project root.
-5. Run the app — it will open a browser for the consent screen and save `token.json`.
+5. Run the app — it will open a browser for the consent screen per account and save `token.json`.
+
+## API routes
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/accounts` | List configured Gmail accounts |
+| GET | `/api/sample-text` | Headline + recommendations from the latest digest |
+| GET | `/api/digests` | All digests (metadata only), newest first |
+| GET | `/api/digests/latest` | Full latest digest JSON |
+| GET | `/api/digests/status` | Whether a digest job is currently running |
+| GET | `/api/digests/refresh` | Trigger a digest run (202, poll `/status` to track) |
+| GET | `/api/digests/<filename>` | Specific digest by filename |
+| POST | `/api/run` | Trigger a digest run in the background |
+
+## Digest storage
+
+Each run writes `digests/YYYY-MM-DD_HH-MM.json`. Same-day runs merge into today's file (new emails appended, recommendations combined). On the first run of a new day, emails from the previous calendar day are backfilled into the prior file; only emails received today start a new file.
 
 ## Roadmap
 
 See [todo.md](todo.md) for the full task list. Up next:
 
-- Digest browser UI (list + detail view for past digests)
-- Configurable look-back window (e.g. 72-hour weekend catch-up)
 - Importance feedback (thumbs up/down to evolve the algorithm)
 - Push notifications for high-importance emails
+- Outlook support

@@ -1,15 +1,29 @@
 """FastAPI server — exposes digest data and triggers to the frontend."""
 
 import json
+import logging
 import os
 import threading
+from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
-app = FastAPI(title="Email summarizer API")
+
+class _SuppressStatusPoll(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        return "/api/digests/status" not in record.getMessage()
+
+
+@asynccontextmanager
+async def _lifespan(app: FastAPI):
+    logging.getLogger("uvicorn.access").addFilter(_SuppressStatusPoll())
+    yield
+
+
+app = FastAPI(title="Email summarizer API", lifespan=_lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -211,12 +225,5 @@ def trigger_run() -> dict[str, str]:
 # ---------------------------------------------------------------------------
 
 def start(host: str = "127.0.0.1", port: int = 8000):
-    import logging
     import uvicorn
-
-    class _SuppressStatusPoll(logging.Filter):
-        def filter(self, record: logging.LogRecord) -> bool:
-            return "/api/digests/status" not in record.getMessage()
-
-    logging.getLogger("uvicorn.access").addFilter(_SuppressStatusPoll())
     uvicorn.run("backend.api:app", host=host, port=port, reload=True)
